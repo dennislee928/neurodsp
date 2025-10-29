@@ -418,7 +418,6 @@ def compute_spectrogram(sig, fs, window='hann', nperseg=None, noverlap=0, nfft=N
 
     nperseg, noverlap = check_windowing_settings(fs, window, nperseg, noverlap)
 
-    freqs, times, spg = spectrogram(sig, fs, window, nperseg, noverlap, nfft,
-                                    detrend='constant', mode='magnitude')
+    freqs, times, spg = spectrogram(sig, fs, window, nperseg, noverlap, nfft)
 
     return freqs, times, spg
