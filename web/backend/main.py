@@ -29,25 +29,42 @@ app.add_middleware(
 )
 
 def to_serializable(v):
+    """
+    Recursively convert values to JSON-serializable types.
+    Handles NumPy, JAX, and built-in types.
+    """
     if v is None:
         return None
+        
+    # Handle dictionary
+    if isinstance(v, dict):
+        return {str(k): to_serializable(val) for k, val in v.items()}
+        
+    # Handle list/tuple/ndarray/JAX array
+    if isinstance(v, (list, tuple)):
+        return [to_serializable(x) for x in v]
+    
+    if hasattr(v, 'tolist'): # NumPy and JAX arrays
+        return to_serializable(v.tolist())
+
+    # Handle scalars
     if isinstance(v, (np.floating, float)):
         if np.isnan(v) or np.isinf(v):
             return None
         return float(v)
-    if isinstance(v, (np.integer, int)):
+    if isinstance(v, (np.integer, int, np.int64, np.int32)):
         return int(v)
-    if isinstance(v, np.ndarray):
-        return [to_serializable(x) for x in v.tolist()]
-    if isinstance(v, list):
-        return [to_serializable(x) for x in v]
-    if isinstance(v, dict):
-        return {str(k): to_serializable(val) for k, val in v.items()}
-    if hasattr(v, 'item') and hasattr(v, 'dtype'):
+    if isinstance(v, (np.bool_, bool)):
+        return bool(v)
+    
+    # Final fallback for numpy/jax scalars
+    if hasattr(v, 'item') and not hasattr(v, '__len__'):
         return to_serializable(v.item())
+        
     return v
 
-# Models
+# --- Pydantic Models for Input ---
+
 class SignalInput(BaseModel):
     sig: List[float]
     fs: float
@@ -65,7 +82,24 @@ class FilterParams(BaseModel):
     filter_type: str = "fir"
     causal: bool = False
 
-# Endpoints
+class BurstParams(BaseModel):
+    sig: List[float]
+    fs: float
+    dual_thresh: List[float]
+    f_range: List[float]
+
+class RhythmParams(BaseModel):
+    sig: List[float]
+    fs: float
+    freqs: List[float]
+
+class ConnectivityParams(BaseModel):
+    sigs: List[List[float]]
+    fs: float
+    f_range: List[float]
+
+# --- Endpoints ---
+
 @app.get("/load-real")
 def load_real_signal():
     try:
@@ -77,7 +111,7 @@ def load_real_signal():
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/simulate")
-def simulate(params: SimParams):
+def simulate_endpoint(params: SimParams):
     try:
         sig = sim_combined(n_seconds=params.n_seconds, fs=params.fs, components=params.components)
         return JSONResponse(content={"sig": to_serializable(sig), "fs": params.fs})
@@ -100,7 +134,11 @@ def analyze_aperiodic(data: SignalInput):
         freqs, psd_ap, psd_pe = compute_irasa(np.array(data.sig), data.fs)
         autocorr = compute_autocorr(np.array(data.sig))
         return JSONResponse(content={
-            "irasa": {"freqs": to_serializable(freqs), "aperiodic": to_serializable(psd_ap), "periodic": to_serializable(psd_pe)},
+            "irasa": {
+                "freqs": to_serializable(freqs), 
+                "aperiodic": to_serializable(psd_ap), 
+                "periodic": to_serializable(psd_pe)
+            },
             "autocorr": to_serializable(autocorr)
         })
     except Exception as e:
@@ -108,30 +146,29 @@ def analyze_aperiodic(data: SignalInput):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/analyze/burst")
-def analyze_burst(data: SignalInput, dual_thresh: List[float], f_range: List[float]):
+def analyze_burst(params: BurstParams):
     try:
-        is_burst = detect_bursts_dual_threshold(np.array(data.sig), data.fs, dual_thresh, f_range)
+        is_burst = detect_bursts_dual_threshold(np.array(params.sig), params.fs, params.dual_thresh, params.f_range)
         return JSONResponse(content={"is_burst": to_serializable(is_burst)})
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/analyze/rhythm")
-def analyze_rhythm(data: SignalInput, freqs: List[float]):
+def analyze_rhythm(params: RhythmParams):
     try:
-        lc = compute_lagged_coherence(np.array(data.sig), data.fs, freqs)
-        return JSONResponse(content={"freqs": to_serializable(freqs), "lc": to_serializable(lc)})
+        lc = compute_lagged_coherence(np.array(params.sig), params.fs, params.freqs)
+        return JSONResponse(content={"freqs": to_serializable(params.freqs), "lc": to_serializable(lc)})
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/analyze/connectivity")
-def analyze_connectivity(sigs: List[List[float]], fs: float, f_range: List[float]):
+def analyze_connectivity(params: ConnectivityParams):
     try:
-        # Multi-channel connectivity (PLV)
         phases = []
-        for sig in sigs:
-            p = phase_by_time(np.array(sig), fs, f_range)
+        for s in params.sigs:
+            p = phase_by_time(np.array(s), params.fs, params.f_range)
             phases.append(p)
         plv_matrix = compute_plv_jax(np.array(phases))
         return JSONResponse(content={"plv": to_serializable(plv_matrix)})
@@ -142,8 +179,8 @@ def analyze_connectivity(sigs: List[List[float]], fs: float, f_range: List[float
 @app.post("/analyze/nonlinear")
 def analyze_nonlinear(data: SignalInput):
     try:
-        entropy = sample_entropy(np.array(data.sig))
-        return JSONResponse(content={"sample_entropy": to_serializable(entropy)})
+        val = sample_entropy(np.array(data.sig))
+        return JSONResponse(content={"sample_entropy": to_serializable(val)})
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
