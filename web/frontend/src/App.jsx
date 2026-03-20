@@ -3,9 +3,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 
 const API_BASE = "http://localhost:8000";
 
-const TabButton = ({ id, active, onClick, label }) => (
-  <button 
+const TabButton = ({ id, active, onClick, label, title }) => (
+  <button
     onClick={() => onClick(id)}
+    title={title || label}
     style={{
       padding: '10px 20px',
       cursor: 'pointer',
@@ -38,6 +39,31 @@ function App() {
   const [activeTab, setActiveTab] = useState('sim');
 
   const hasSignal = signal.length > 0;
+
+  const tabDescriptions = {
+    sim: {
+      label: 'SIM',
+      description: 'Simulate time series, including periodic and aperiodic signal components.'
+    },
+    spectral: {
+      label: 'SPECTRAL',
+      description: 'Compute freqeuncy domain features such as power spectra.'
+    },
+    aperiodic: {
+      label: 'APERIODIC',
+      description: 'Analyze aperiodic features of neural time series (IRASA, Autocorrelation).'
+    },
+    rhythm: {
+      label: 'RHYTHM',
+      description: 'Find and analyze rhythmic and recurrent patterns in time series.'
+    },
+    ml: {
+      label: 'ML',
+      description: 'Automated feature extraction bridge for Machine Learning pipelines.'
+    }
+  };
+
+  const activeTabDescription = tabDescriptions[activeTab]?.description || '';
 
   const fetchData = async (endpoint, body) => {
     setLoading(true);
@@ -109,11 +135,24 @@ function App() {
 
       <div style={{ display: 'flex', marginBottom: '-1px' }}>
         {['sim', 'spectral', 'aperiodic', 'rhythm', 'ml'].map(t => (
-          <TabButton key={t} id={t} active={activeTab} onClick={setActiveTab} label={t.toUpperCase()} />
+          <TabButton
+            key={t}
+            id={t}
+            active={activeTab}
+            onClick={setActiveTab}
+            label={t.toUpperCase()}
+            title={tabDescriptions[t]?.description}
+          />
         ))}
       </div>
 
       <div style={{ border: '1px solid #dee2e6', padding: '20px', borderRadius: '0 5px 5px 5px', backgroundColor: 'white', marginBottom: '30px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+        {activeTabDescription ? (
+          <div className="tabDescription">
+            <strong>{activeTab.toUpperCase()}:</strong> {activeTabDescription}
+          </div>
+        ) : null}
+
         {activeTab === 'sim' && (
           <ControlGroup title="Data Source">
             <button onClick={() => handleAction('sim_combined')} disabled={loading}>Simulate Combined (1/f + 10Hz)</button>

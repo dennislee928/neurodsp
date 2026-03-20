@@ -40,3 +40,4 @@ doc/generated/
 doc/sg_execution_times.rst
 # node_modules
 node_modules/
+/web/frontend/dist
