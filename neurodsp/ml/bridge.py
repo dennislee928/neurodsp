@@ -38,8 +38,9 @@ class MLFeatureBridge:
         try:
             freqs_ap, psd_ap, _ = compute_irasa(sig, self.fs)
             # Simple linear fit in log-log space for exponent
-            log_freqs = np.log10(freqs_ap[1:]) # skip 0
-            log_psd = np.log10(psd_ap[1:])
+            # Add epsilon to avoid log10(0)
+            log_freqs = np.log10(freqs_ap[1:] + 1e-10) 
+            log_psd = np.log10(psd_ap[1:] + 1e-10)
             slope, _ = np.polyfit(log_freqs, log_psd, 1)
             features['aperiodic_exponent'] = -slope
         except:

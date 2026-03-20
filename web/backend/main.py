@@ -29,25 +29,14 @@ app.add_middleware(
 )
 
 def to_serializable(v):
-    """
-    Recursively convert values to JSON-serializable types.
-    Handles NumPy, JAX, and built-in types.
-    """
     if v is None:
         return None
-        
-    # Handle dictionary
     if isinstance(v, dict):
         return {str(k): to_serializable(val) for k, val in v.items()}
-        
-    # Handle list/tuple/ndarray/JAX array
     if isinstance(v, (list, tuple)):
         return [to_serializable(x) for x in v]
-    
-    if hasattr(v, 'tolist'): # NumPy and JAX arrays
+    if hasattr(v, 'tolist'):
         return to_serializable(v.tolist())
-
-    # Handle scalars
     if isinstance(v, (np.floating, float)):
         if np.isnan(v) or np.isinf(v):
             return None
@@ -56,30 +45,28 @@ def to_serializable(v):
         return int(v)
     if isinstance(v, (np.bool_, bool)):
         return bool(v)
-    
-    # Final fallback for numpy/jax scalars or other objects
     if hasattr(v, 'item') and not hasattr(v, '__len__'):
         try:
             return to_serializable(v.item())
         except:
             return None
-            
-    # If it's a function or something else not serializable, return None instead of the object
     if callable(v):
         return None
-        
     return v
 
-# --- Pydantic Models for Input ---
+def get_nperseg(sig_len, fs, n_seconds=2.0):
+    """Calculate nperseg based on signal length to avoid warnings."""
+    return min(sig_len, int(n_seconds * fs))
 
+# Models
 class SignalInput(BaseModel):
     sig: List[float]
     fs: float
 
 class SimParams(BaseModel):
-    n_seconds: float = 1.0
+    n_seconds: float = 4.0
     fs: float = 500.0
-    components: Dict[str, Dict] = {"sim_powerlaw": {"exponent": -1}}
+    components: Dict[str, Dict] = {"sim_powerlaw": {"exponent": -1.5}}
 
 class FilterParams(BaseModel):
     sig: List[float]
@@ -92,21 +79,20 @@ class FilterParams(BaseModel):
 class BurstParams(BaseModel):
     sig: List[float]
     fs: float
-    dual_thresh: List[float]
-    f_range: List[float]
+    dual_thresh: List[float] = [1, 2]
+    f_range: List[float] = [8, 12]
 
 class RhythmParams(BaseModel):
     sig: List[float]
     fs: float
-    freqs: List[float]
+    freqs: List[float] = [8, 9, 10, 11, 12]
 
 class ConnectivityParams(BaseModel):
     sigs: List[List[float]]
     fs: float
-    f_range: List[float]
+    f_range: List[float] = [8, 12]
 
-# --- Endpoints ---
-
+# Endpoints
 @app.get("/load-real")
 def load_real_signal():
     try:
@@ -129,7 +115,8 @@ def simulate_endpoint(params: SimParams):
 @app.post("/analyze/spectral")
 def analyze_spectral(data: SignalInput):
     try:
-        freqs, psd = compute_spectrum(np.array(data.sig), data.fs)
+        nperseg = get_nperseg(len(data.sig), data.fs)
+        freqs, psd = compute_spectrum(np.array(data.sig), data.fs, nperseg=nperseg)
         return JSONResponse(content={"freqs": to_serializable(freqs), "psd": to_serializable(psd)})
     except Exception as e:
         traceback.print_exc()
@@ -138,8 +125,8 @@ def analyze_spectral(data: SignalInput):
 @app.post("/analyze/aperiodic")
 def analyze_aperiodic(data: SignalInput):
     try:
-        # Use a slightly longer signal or adjust parameters if IRASA fails
-        freqs, psd_ap, psd_pe = compute_irasa(np.array(data.sig), data.fs)
+        nperseg = get_nperseg(len(data.sig), data.fs)
+        freqs, psd_ap, psd_pe = compute_irasa(np.array(data.sig), data.fs, nperseg=nperseg)
         autocorr = compute_autocorr(np.array(data.sig))
         return JSONResponse(content={
             "irasa": {
@@ -165,10 +152,8 @@ def analyze_burst(params: BurstParams):
 @app.post("/analyze/rhythm")
 def analyze_rhythm(params: RhythmParams):
     try:
-        # Ensure freqs is an array if it's a list with >3 elements
         freqs_input = np.array(params.freqs)
         lc = compute_lagged_coherence(np.array(params.sig), params.fs, freqs_input, return_spectrum=True)
-        # Note: compute_lagged_coherence returns (lc, freqs) if return_spectrum=True
         if isinstance(lc, tuple):
             lcs, freqs_out = lc
             return JSONResponse(content={"freqs": to_serializable(freqs_out), "lc": to_serializable(lcs)})
@@ -182,7 +167,6 @@ def analyze_connectivity(params: ConnectivityParams):
     try:
         phases = []
         for s in params.sigs:
-            # remove_edges=False to avoid NaNs in PLV
             p = phase_by_time(np.array(s), params.fs, params.f_range, remove_edges=False)
             phases.append(p)
         plv_matrix = compute_plv_jax(np.array(phases))

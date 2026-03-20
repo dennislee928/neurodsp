@@ -1,24 +1,35 @@
-.git
-.github
-.gitignore
+# Node
+node_modules
+dist
+.env
+
+# Python
 __pycache__
 *.pyc
 *.pyo
 *.pyd
-.pytest_cache
-.ipynb_checkpoints
-data/
-doc/
-examples/
-tutorials/
-dist/
-build/
-*.egg-info
-.venv
-venv
-ENV
-env
-.env
-Dockerfile
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.pytest_cache/
+
+# Git
+.git
+.gitignore
+
+# Docker
 docker-compose.yml
-.gemini
+Dockerfile*
+
+# OS
+.DS_Store
+Thumbs.db

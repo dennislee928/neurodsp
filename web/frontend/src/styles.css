@@ -234,6 +234,23 @@ body::after {
   padding: 14px;
 }
 
+.tabDescription {
+  padding: 12px 14px;
+  margin: 10px 14px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 61, 242, 0.18);
+  background: rgba(0, 0, 0, 0.20);
+  color: rgba(220, 255, 255, 0.90);
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 0 0 1px rgba(0, 245, 255, 0.06) inset;
+}
+
+.tabDescription strong {
+  color: rgba(230, 255, 255, 0.98);
+  text-shadow: 0 0 14px rgba(0, 245, 255, 0.22);
+}
+
 .cardTitle {
   margin: 0;
   padding: 14px 14px 0;
