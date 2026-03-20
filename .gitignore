@@ -38,3 +38,5 @@ doc/auto_examples/
 doc/auto_tutorials/
 doc/generated/
 doc/sg_execution_times.rst
+# node_modules
+node_modules/
