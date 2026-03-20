@@ -1,18 +1,29 @@
 import React, { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter, Cell } from 'recharts';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
 const API_BASE = "http://localhost:8000";
 
 function App() {
   const [signal, setSignal] = useState([]);
-  const [filtered, setFiltered] = useState([]);
+  const [, setFiltered] = useState([]);
   const [fs, setFs] = useState(500);
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const [activeTab, setActiveTab] = useState('sim');
 
   const fetchData = async (endpoint, body) => {
     setLoading(true);
+    setErrorMsg('');
     try {
       const res = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
@@ -23,12 +34,23 @@ function App() {
       if (!res.ok) throw new Error(data.detail || 'API Error');
       return data;
     } catch (e) {
-      alert(e.message);
+      setErrorMsg(e?.message || 'Unexpected API error');
       return null;
     } finally {
       setLoading(false);
     }
   };
+
+  const tooltipContentStyle = {
+    backgroundColor: 'rgba(8, 12, 26, 0.92)',
+    border: '1px solid rgba(0, 245, 255, 0.22)',
+    borderRadius: 12,
+    color: 'rgba(220, 255, 255, 0.95)',
+    boxShadow: '0 16px 40px rgba(0,0,0,0.55)',
+    backdropFilter: 'blur(8px)'
+  };
+
+  const tabs = ['sim', 'spectral', 'aperiodic', 'burst', 'rhythm', 'ml', 'advanced'];
 
   const handleSimulate = async () => {
     const data = await fetchData('/simulate', {
@@ -104,24 +126,39 @@ function App() {
     switch(activeTab) {
       case 'sim':
         return (
-          <div>
-            <button onClick={handleSimulate} disabled={loading}>Simulate Combined</button>
-            <button onClick={handleLoadReal} disabled={loading}>Load Real Signal</button>
+          <div className="row">
+            <button className="neonAction" onClick={handleSimulate} disabled={loading}>Simulate Combined</button>
+            <button className="neonAction" onClick={handleLoadReal} disabled={loading}>Load Real Signal</button>
           </div>
         );
       case 'spectral':
         return (
           <div>
-            <button onClick={() => runAnalysis('spectral')} disabled={loading || signal.length === 0}>Compute Spectrum</button>
+            <div className="row">
+              <button className="neonAction" onClick={() => runAnalysis('spectral')} disabled={loading || signal.length === 0}>Compute Spectrum</button>
+            </div>
             {results.spectral && (
-              <div style={{ height: 300 }}>
+              <div className="chartMiniWrap">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={results.spectral}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="freq" label="Freq (Hz)" />
-                    <YAxis scale="log" domain={['auto', 'auto']} label="Power" />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="psd" stroke="#8884d8" dot={false} />
+                    <CartesianGrid stroke="rgba(0,245,255,0.14)" strokeDasharray="4 4" />
+                    <XAxis
+                      dataKey="freq"
+                      label="Freq (Hz)"
+                      tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                      axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                      tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                    />
+                    <YAxis
+                      scale="log"
+                      domain={['auto', 'auto']}
+                      label="Power"
+                      tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                      axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                      tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                    />
+                    <Tooltip contentStyle={tooltipContentStyle} />
+                    <Line type="monotone" dataKey="psd" stroke="#00f5ff" dot={false} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -131,22 +168,35 @@ function App() {
       case 'aperiodic':
         return (
           <div>
-            <button onClick={() => runAnalysis('aperiodic')} disabled={loading || signal.length === 0}>Run IRASA</button>
+            <div className="row">
+              <button className="neonAction" onClick={() => runAnalysis('aperiodic')} disabled={loading || signal.length === 0}>Run IRASA</button>
+            </div>
             {results.aperiodic && (
-               <div style={{ height: 300 }}>
+               <div className="chartMiniWrap">
                  <ResponsiveContainer width="100%" height="100%">
                    <LineChart data={results.aperiodic.irasa.freqs.map((f, i) => ({
                      freq: f,
                      ap: results.aperiodic.irasa.aperiodic[i],
                      pe: results.aperiodic.irasa.periodic[i]
                    }))}>
-                     <CartesianGrid strokeDasharray="3 3" />
-                     <XAxis dataKey="freq" />
-                     <YAxis scale="log" domain={['auto', 'auto']} />
-                     <Tooltip />
-                     <Legend />
-                     <Line type="monotone" dataKey="ap" stroke="#8884d8" dot={false} name="Aperiodic" />
-                     <Line type="monotone" dataKey="pe" stroke="#82ca9d" dot={false} name="Periodic" />
+                     <CartesianGrid stroke="rgba(0,245,255,0.14)" strokeDasharray="4 4" />
+                     <XAxis
+                       dataKey="freq"
+                       tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                       axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                       tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                     />
+                     <YAxis
+                       scale="log"
+                       domain={['auto', 'auto']}
+                       tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                       axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                       tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                     />
+                     <Tooltip contentStyle={tooltipContentStyle} />
+                     <Legend wrapperStyle={{ color: 'rgba(220,255,255,0.85)' }} />
+                     <Line type="monotone" dataKey="ap" stroke="#00f5ff" dot={false} name="Aperiodic" isAnimationActive={false} />
+                     <Line type="monotone" dataKey="pe" stroke="#39ff88" dot={false} name="Periodic" isAnimationActive={false} />
                    </LineChart>
                  </ResponsiveContainer>
                </div>
@@ -156,23 +206,34 @@ function App() {
       case 'burst':
         return (
             <div>
-                <button onClick={() => runAnalysis('burst')} disabled={loading || signal.length === 0}>Detect Bursts (10Hz)</button>
-                {results.burst && <p>Burst detected in {results.burst.filter(b => b).length} samples.</p>}
+              <div className="row">
+                <button className="neonAction" onClick={() => runAnalysis('burst')} disabled={loading || signal.length === 0}>Detect Bursts (10Hz)</button>
+              </div>
+              {results.burst && (
+                <p className="miniText">Burst detected in {results.burst.filter(b => b).length} samples.</p>
+              )}
             </div>
         );
       case 'rhythm':
         return (
             <div>
-                <button onClick={() => runAnalysis('rhythm')} disabled={loading || signal.length === 0}>Lagged Coherence</button>
+                <div className="row">
+                  <button className="neonAction" onClick={() => runAnalysis('rhythm')} disabled={loading || signal.length === 0}>Lagged Coherence</button>
+                </div>
                 {results.rhythm && (
-                    <div style={{ height: 300 }}>
+                    <div className="chartMiniWrap">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={results.rhythm}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="freq" />
-                                <YAxis />
-                                <Tooltip />
-                                <Line type="monotone" dataKey="lc" stroke="#ff7300" />
+                                <CartesianGrid stroke="rgba(0,245,255,0.14)" strokeDasharray="4 4" />
+                                <XAxis
+                                  dataKey="freq"
+                                  tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                                  axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                                  tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                                />
+                                <YAxis tick={{ fill: 'rgba(220, 255, 255, 0.78)' }} axisLine={{ stroke: 'rgba(0,245,255,0.20)' }} tickLine={{ stroke: 'rgba(0,245,255,0.20)' }} />
+                                <Tooltip contentStyle={tooltipContentStyle} />
+                                <Line type="monotone" dataKey="lc" stroke="#ff7a18" dot={false} isAnimationActive={false} />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
@@ -182,48 +243,87 @@ function App() {
       case 'ml':
         return (
             <div>
-                <button onClick={() => runAnalysis('features')} disabled={loading || signal.length === 0}>Extract All Features</button>
-                {results.features && <pre style={{background: '#eee', padding: 10}}>{JSON.stringify(results.features, null, 2)}</pre>}
+                <div className="row">
+                  <button className="neonAction" onClick={() => runAnalysis('features')} disabled={loading || signal.length === 0}>Extract All Features</button>
+                </div>
+                {results.features && (
+                  <pre className="jsonPre">{JSON.stringify(results.features, null, 2)}</pre>
+                )}
             </div>
         );
       case 'advanced':
         return (
             <div>
-                <button onClick={() => runAnalysis('nonlinear')} disabled={loading || signal.length === 0}>Sample Entropy</button>
-                <button onClick={() => runAnalysis('connectivity')} disabled={loading || signal.length === 0}>PLV (Signal vs Noise)</button>
-                {results.nonlinear && <p>Sample Entropy: {results.nonlinear.sample_entropy.toFixed(4)}</p>}
-                {results.connectivity && <p>Connectivity Matrix (PLV): {JSON.stringify(results.connectivity.plv)}</p>}
+              <div className="row">
+                <button className="neonAction" onClick={() => runAnalysis('nonlinear')} disabled={loading || signal.length === 0}>Sample Entropy</button>
+                <button className="neonAction" onClick={() => runAnalysis('connectivity')} disabled={loading || signal.length === 0}>PLV (Signal vs Noise)</button>
+              </div>
+              {results.nonlinear && (
+                <p className="miniText">Sample Entropy: {results.nonlinear.sample_entropy.toFixed(4)}</p>
+              )}
+              {results.connectivity && (
+                <p className="miniText">Connectivity Matrix (PLV): {JSON.stringify(results.connectivity.plv)}</p>
+              )}
             </div>
         )
     }
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'system-ui' }}>
-      <h1>NeuroDSP Dashboard Pro</h1>
-      
-      <div style={{ border: '1px solid #ccc', padding: '10px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-            {['sim', 'spectral', 'aperiodic', 'burst', 'rhythm', 'ml', 'advanced'].map(t => (
-                <button key={t} onClick={() => setActiveTab(t)} style={{ fontWeight: activeTab === t ? 'bold' : 'normal' }}>
-                    {t.toUpperCase()}
-                </button>
-            ))}
+    <div className="appRoot">
+      <header className="header">
+        <div>
+          <div className="brandTitle">NeuroDSP Dashboard Pro</div>
+          <div className="brandSub">Cyberpunk analytics console • RWD Ready</div>
         </div>
-        {renderTabContent()}
-      </div>
+        <div className="statusPill">
+          <span className={loading ? 'statusDot loading' : 'statusDot'} />
+          {loading ? 'Processing...' : 'Ready'}
+        </div>
+      </header>
 
-      <div style={{ height: '300px', marginBottom: '40px' }}>
-        <h3>Signal Visualization</h3>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={signal}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="x" />
-            <YAxis />
-            <Tooltip />
-            <Line type="monotone" dataKey="y" stroke="#333" dot={false} isAnimationActive={false} />
-          </LineChart>
-        </ResponsiveContainer>
+      {errorMsg ? <div className="errorBar" role="alert">{errorMsg}</div> : null}
+
+      <div className="layoutGrid">
+        <section className="card">
+          <div className="tabs">
+            {tabs.map(t => (
+              <button
+                key={t}
+                className={activeTab === t ? 'neonBtn active' : 'neonBtn'}
+                onClick={() => setActiveTab(t)}
+                type="button"
+              >
+                {t.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <div className="panel">{renderTabContent()}</div>
+        </section>
+
+        <section className="card chartCard">
+          <h3 className="cardTitle">Signal Visualization</h3>
+          <div className="chartWrap">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={signal}>
+                <CartesianGrid stroke="rgba(0,245,255,0.14)" strokeDasharray="4 4" />
+                <XAxis
+                  dataKey="x"
+                  tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                  axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                  tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                />
+                <YAxis
+                  tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                  axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                  tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                />
+                <Tooltip contentStyle={tooltipContentStyle} />
+                <Line type="monotone" dataKey="y" stroke="#39ff88" dot={false} isAnimationActive={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
       </div>
     </div>
   );
