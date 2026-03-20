@@ -1,3 +1,9 @@
-numpy
+jax[cpu]
+jaxlib
+altair
+fastplotlib
+robotframework
+polars
+pydantic
 scipy
-matplotlib
+numpy

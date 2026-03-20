@@ -2,7 +2,7 @@
 
 from itertools import repeat
 
-import numpy as np
+import jax.numpy as jnp
 
 ###################################################################################################
 ###################################################################################################
@@ -14,7 +14,6 @@ def check_param_range(param, label, bounds):
     ----------
     param : float
         Parameter value to check.
-    label : str
         Label of the parameter being checked.
     bounds : list of [float, float]
        Bounding range of valid values for the given parameter.
@@ -78,14 +77,14 @@ def check_n_cycles(n_cycles, len_cycles=None):
         An iterable version of the number of cycles.
     """
 
-    if isinstance(n_cycles, (int, float, np.number)):
+    if isinstance(n_cycles, (int, float, jnp.generic)):
 
         if n_cycles <= 0:
             raise ValueError('Number of cycles must be a positive number.')
 
         n_cycles = repeat(n_cycles)
 
-    elif isinstance(n_cycles, (tuple, list, np.ndarray)):
+    elif isinstance(n_cycles, (tuple, list, jnp.ndarray)):
 
         for cycle in n_cycles:
             if cycle <= 0:
