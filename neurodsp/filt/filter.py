@@ -11,7 +11,7 @@ from neurodsp.utils.decorators import multidim
 @multidim(pass_2d_input=True)
 def filter_signal(sig, fs, pass_type, f_range, filter_type=None,
                   print_transitions=False, plot_properties=False, return_filter=False,
-                  **filter_kwargs):
+                  causal=False, **filter_kwargs):
     """Apply a bandpass, bandstop, highpass, or lowpass filter to a neural signal.
 
     Parameters
@@ -41,6 +41,8 @@ def filter_signal(sig, fs, pass_type, f_range, filter_type=None,
         If True, plot the properties of the filter, including frequency response and/or kernel.
     return_filter : bool, optional, default: False
         If True, return the filter coefficients.
+    causal : bool, optional, default: False
+        If True, use a causal filter (no phase shift correction).
     **filter_kwargs
         Additional parameters for the filtering function, specific to filtering type.
 
@@ -88,18 +90,20 @@ def filter_signal(sig, fs, pass_type, f_range, filter_type=None,
         return filter_signal_fir(sig, fs, pass_type, f_range, **filter_kwargs,
                                  print_transitions=print_transitions,
                                  plot_properties=plot_properties,
-                                 return_filter=return_filter)
+                                 return_filter=return_filter,
+                                 causal=causal)
 
     elif filter_type.lower() == 'iir':
         return filter_signal_iir(sig, fs, pass_type, f_range, **filter_kwargs,
                                  print_transitions=print_transitions,
                                  plot_properties=plot_properties,
-                                 return_filter=return_filter)
+                                 return_filter=return_filter,
+                                 causal=causal)
 
 
 FILTER_INPUTS = {
-    'fir' : ['n_cycles', 'n_seconds', 'remove_edges'],
-    'iir' : ['butterworth_order'],
+    'fir' : ['n_cycles', 'n_seconds', 'remove_edges', 'causal'],
+    'iir' : ['butterworth_order', 'causal'],
 }
 
 
