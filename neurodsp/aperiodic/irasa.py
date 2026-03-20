@@ -92,8 +92,13 @@ def compute_irasa(sig, fs, f_range=None, hset=None, thresh=None, **spectrum_kwar
         freqs_up, psd_up = compute_spectrum(sig_up, h_val * fs, **spectrum_kwargs)
         freqs_dn, psd_dn = compute_spectrum(sig_dn, fs / h_val, **spectrum_kwargs)
 
+        # Ensure same length for geometric mean calculation
+        min_len = min(len(psd_up), len(psd_dn), psd.shape[-1])
+        psd_up = psd_up[:min_len]
+        psd_dn = psd_dn[:min_len]
+
         # Calculate the geometric mean of h and 1/h
-        psds[ind, :] = np.sqrt(psd_up * psd_dn)
+        psds[ind, :min_len] = np.sqrt(psd_up * psd_dn)
 
     # Take the median resampled spectra, as an estimate of the aperiodic component
     psd_aperiodic = np.median(psds, axis=0)
