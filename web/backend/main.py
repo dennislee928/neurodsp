@@ -1,0 +1,55 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional, Dict
+import numpy as np
+from neurodsp.sim import sim_combined
+from neurodsp.filt import filter_signal
+from neurodsp.ml.bridge import MLFeatureBridge
+
+app = FastAPI(title="NeuroDSP Web API")
+
+class SignalParams(BaseModel):
+    n_seconds: float = 1.0
+    fs: float = 500.0
+    components: Dict[str, Dict] = {"sim_powerlaw": {"exponent": -1}}
+
+class FilterParams(BaseModel):
+    sig: List[float]
+    fs: float
+    pass_type: str
+    f_range: List[float]
+    filter_type: str = "fir"
+    causal: bool = False
+
+@app.post("/simulate")
+def simulate_signal(params: SignalParams):
+    try:
+        sig = sim_combined(n_seconds=params.n_seconds, fs=params.fs, components=params.components)
+        return {"sig": sig.tolist(), "fs": params.fs}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/filter")
+def filter_sig(params: FilterParams):
+    try:
+        sig = np.array(params.sig)
+        f_range = tuple(params.f_range) if len(params.f_range) == 2 else params.f_range[0]
+        sig_filt = filter_signal(sig, params.fs, params.pass_type, f_range, 
+                                 filter_type=params.filter_type, causal=params.causal)
+        return {"sig_filt": sig_filt.tolist()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/features")
+def extract_features(sig: List[float], fs: float):
+    try:
+        bridge = MLFeatureBridge(fs)
+        features = bridge.extract_features(np.array(sig))
+        # Convert nan to None for JSON
+        return {k: (None if np.isnan(v) else v) for k, v in features.items()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

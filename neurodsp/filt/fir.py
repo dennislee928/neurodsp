@@ -16,7 +16,7 @@ from neurodsp.filt.checks import (check_filter_definition, check_filter_properti
 
 def filter_signal_fir(sig, fs, pass_type, f_range, n_cycles=None, n_seconds=None,
                       remove_edges=True, print_transitions=False, plot_properties=False,
-                      return_filter=False):
+                      return_filter=False, causal=False):
     """Apply an FIR filter to a signal.
 
     Parameters
@@ -46,12 +46,15 @@ def filter_signal_fir(sig, fs, pass_type, f_range, n_cycles=None, n_seconds=None
         Either `n_cycles` or `n_seconds` can be defined to set the filter length, but not both.
     remove_edges : bool, optional
         If True, replace samples within half the kernel length to be jnp.nan.
+        Ignored if causal is True.
     print_transitions : bool, optional, default: False
         If True, print out the transition and pass bandwidths.
     plot_properties : bool, optional, default: False
         If True, plot the properties of the filter, including frequency response and/or kernel.
     return_filter : bool, optional, default: False
         If True, return the filter coefficients of the FIR filter.
+    causal : bool, optional, default: False
+        If True, use a causal filter (no phase shift correction).
 
     Returns
     -------
@@ -88,10 +91,10 @@ def filter_signal_fir(sig, fs, pass_type, f_range, n_cycles=None, n_seconds=None
     sig, sig_nans = remove_nans(sig)
 
     # Apply filter
-    sig_filt = apply_fir_filter(sig, filter_coefs)
+    sig_filt = apply_fir_filter(sig, filter_coefs, causal=causal)
 
-    # Remove edge artifacts
-    if remove_edges:
+    # Remove edge artifacts (only for non-causal)
+    if remove_edges and not causal:
         sig_filt = remove_filter_edges(sig_filt, len(filter_coefs))
 
     # Add NaN back on the edges of 'sig', if there were any at the beginning
@@ -109,7 +112,7 @@ def filter_signal_fir(sig, fs, pass_type, f_range, n_cycles=None, n_seconds=None
 
 
 @multidim()
-def apply_fir_filter(sig, filter_coefs):
+def apply_fir_filter(sig, filter_coefs, causal=False):
     """Apply an FIR filter to a signal.
 
     Parameters
@@ -118,6 +121,8 @@ def apply_fir_filter(sig, filter_coefs):
         Time series to be filtered.
     filter_coefs : 1d array
         Filter coefficients of the FIR filter.
+    causal : bool, optional, default: False
+        If True, use a causal filter (no phase shift correction).
 
     Returns
     -------
@@ -135,7 +140,12 @@ def apply_fir_filter(sig, filter_coefs):
     >>> filt_sig = apply_fir_filter(sig, filter_coefs)
     """
 
-    return convolve(sig, filter_coefs, mode='same')
+    if causal:
+        # For causal filtering, we want the convolution to start at the current sample
+        # mode='full' gives L+N-1 samples. We want the first L samples.
+        return convolve(sig, filter_coefs, mode='full')[:len(sig)]
+    else:
+        return convolve(sig, filter_coefs, mode='same')
 
 
 def design_fir_filter(fs, pass_type, f_range, n_cycles=None, n_seconds=None):

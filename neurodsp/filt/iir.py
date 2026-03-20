@@ -1,6 +1,6 @@
 """Filter signals with IIR filters."""
 
-from scipy.signal import butter, sosfiltfilt
+from scipy.signal import butter, sosfiltfilt, sosfilt
 
 from neurodsp.utils import remove_nans, restore_nans
 from neurodsp.filt.utils import compute_nyquist, compute_frequency_response
@@ -11,7 +11,8 @@ from neurodsp.plts.filt import plot_frequency_response
 ###################################################################################################
 
 def filter_signal_iir(sig, fs, pass_type, f_range, butterworth_order,
-                      print_transitions=False, plot_properties=False, return_filter=False):
+                      print_transitions=False, plot_properties=False, return_filter=False,
+                      causal=False):
     """Apply an IIR filter to a signal.
 
     Parameters
@@ -41,6 +42,8 @@ def filter_signal_iir(sig, fs, pass_type, f_range, butterworth_order,
         If True, plot the properties of the filter, including frequency response and/or kernel.
     return_filter : bool, optional, default: False
         If True, return the second order series coefficients of the IIR filter.
+    causal : bool, optional, default: False
+        If True, use a causal filter (no phase shift correction).
 
     Returns
     -------
@@ -71,7 +74,7 @@ def filter_signal_iir(sig, fs, pass_type, f_range, butterworth_order,
     sig, sig_nans = remove_nans(sig)
 
     # Apply filter
-    sig_filt = apply_iir_filter(sig, sos)
+    sig_filt = apply_iir_filter(sig, sos, causal=causal)
 
     # Add NaN back on the edges of 'sig', if there were any at the beginning
     sig_filt = restore_nans(sig_filt, sig_nans)
@@ -87,7 +90,7 @@ def filter_signal_iir(sig, fs, pass_type, f_range, butterworth_order,
         return sig_filt
 
 
-def apply_iir_filter(sig, sos):
+def apply_iir_filter(sig, sos, causal=False):
     """Apply an IIR filter to a signal.
 
     Parameters
@@ -96,6 +99,8 @@ def apply_iir_filter(sig, sos):
         Time series to be filtered.
     sos : 2d array
         Second order series coefficients for an IIR filter. Has shape of (n_sections, 6).
+    causal : bool, optional, default: False
+        If True, use a causal filter (no phase shift correction).
 
     Returns
     -------
@@ -114,7 +119,10 @@ def apply_iir_filter(sig, sos):
     >>> filt_signal = apply_iir_filter(sig, sos)
     """
 
-    return sosfiltfilt(sos, sig)
+    if causal:
+        return sosfilt(sos, sig)
+    else:
+        return sosfiltfilt(sos, sig)
 
 
 def design_iir_filter(fs, pass_type, f_range, butterworth_order):
