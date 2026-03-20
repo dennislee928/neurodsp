@@ -7,18 +7,8 @@ const TabButton = ({ id, active, onClick, label, title }) => (
   <button
     onClick={() => onClick(id)}
     title={title || label}
-    style={{
-      padding: '10px 20px',
-      cursor: 'pointer',
-      backgroundColor: active === id ? '#007bff' : '#f8f9fa',
-      color: active === id ? 'white' : '#333',
-      border: '1px solid #dee2e6',
-      borderBottom: 'none',
-      borderRadius: '5px 5px 0 0',
-      marginRight: '5px',
-      fontWeight: 'bold',
-      transition: 'all 0.2s'
-    }}
+    className={active === id ? 'neonBtn active' : 'neonBtn'}
+    type="button"
   >
     {label}
   </button>
@@ -65,6 +55,15 @@ function App() {
 
   const activeTabDescription = tabDescriptions[activeTab]?.description || '';
 
+  const tooltipContentStyle = {
+    backgroundColor: 'rgba(8, 12, 26, 0.92)',
+    border: '1px solid rgba(0, 245, 255, 0.22)',
+    borderRadius: 12,
+    color: 'rgba(220, 255, 255, 0.95)',
+    boxShadow: '0 16px 40px rgba(0,0,0,0.55)',
+    backdropFilter: 'blur(8px)'
+  };
+
   const fetchData = async (endpoint, body) => {
     setLoading(true);
     try {
@@ -100,19 +99,28 @@ function App() {
         break;
       case 'spectral':
         data = await fetchData('/analyze/spectral', { sig: sigArray, fs });
-        if (data) setResults({ ...results, spectral: data.freqs.map((f, i) => ({ freq: f.toFixed(2), psd: data.psd[i] })) });
+        if (data) {
+          const points = data.freqs
+            .map((f, i) => ({
+              freq: Number(Number(f).toFixed(2)),
+              psd: data.psd[i]
+            }))
+            // log-scale needs strictly positive values
+            .filter(p => Number.isFinite(p.freq) && typeof p.psd === 'number' && p.psd > 0);
+          setResults(prev => ({ ...prev, spectral: points }));
+        }
         break;
       case 'aperiodic':
         data = await fetchData('/analyze/aperiodic', { sig: sigArray, fs });
-        if (data) setResults({ ...results, aperiodic: data });
+        if (data) setResults(prev => ({ ...prev, aperiodic: data }));
         break;
       case 'ml':
         data = await fetchData('/features', { sig: sigArray, fs });
-        if (data) setResults({ ...results, ml: data });
+        if (data) setResults(prev => ({ ...prev, ml: data }));
         break;
       case 'rhythm':
         data = await fetchData('/analyze/rhythm', { sig: sigArray, fs, freqs: [8, 9, 10, 11, 12] });
-        if (data) setResults({ ...results, rhythm: data.freqs.map((f, i) => ({ freq: f, lc: data.lc[i] })) });
+        if (data) setResults(prev => ({ ...prev, rhythm: data.freqs.map((f, i) => ({ freq: Number(f), lc: data.lc[i] })) }));
         break;
     }
   };
@@ -127,135 +135,223 @@ function App() {
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px', fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif', color: '#212529' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <h1 style={{ margin: 0, color: '#007bff' }}>NeuroDSP Dashboard <span style={{ fontWeight: 'lighter', fontSize: '1rem', color: '#6c757d' }}>v2.0</span></h1>
-        {Object.keys(results).length > 0 && <button onClick={exportResults} style={{ padding: '8px 15px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Export Analysis (.json)</button>}
+    <div className="appRoot">
+      <header className="header">
+        <div>
+          <div className="brandTitle">
+            NeuroDSP Dashboard{' '}
+            <span style={{ fontWeight: 'lighter', fontSize: '0.95rem', color: 'var(--muted)' }}>v2.0</span>
+          </div>
+          <div className="brandSub">Cyberpunk analytics console • RWD Ready</div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {Object.keys(results).length > 0 && (
+            <button className="neonAction" onClick={exportResults} type="button">
+              Export Analysis (.json)
+            </button>
+          )}
+
+          <div className="statusPill" aria-live="polite">
+            <span className={loading ? 'statusDot loading' : 'statusDot'} />
+            {loading ? 'Processing...' : hasSignal ? 'Signal Loaded' : 'Ready'}
+          </div>
+        </div>
       </header>
 
-      <div style={{ display: 'flex', marginBottom: '-1px' }}>
-        {['sim', 'spectral', 'aperiodic', 'rhythm', 'ml'].map(t => (
-          <TabButton
-            key={t}
-            id={t}
-            active={activeTab}
-            onClick={setActiveTab}
-            label={t.toUpperCase()}
-            title={tabDescriptions[t]?.description}
-          />
-        ))}
-      </div>
-
-      <div style={{ border: '1px solid #dee2e6', padding: '20px', borderRadius: '0 5px 5px 5px', backgroundColor: 'white', marginBottom: '30px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-        {activeTabDescription ? (
-          <div className="tabDescription">
-            <strong>{activeTab.toUpperCase()}:</strong> {activeTabDescription}
+      <div className="layoutGrid">
+        <section className="card">
+          <div className="tabs">
+            {['sim', 'spectral', 'aperiodic', 'rhythm', 'ml'].map(t => (
+              <TabButton
+                key={t}
+                id={t}
+                active={activeTab}
+                onClick={setActiveTab}
+                label={t.toUpperCase()}
+                title={tabDescriptions[t]?.description}
+              />
+            ))}
           </div>
-        ) : null}
 
-        {activeTab === 'sim' && (
-          <ControlGroup title="Data Source">
-            <button onClick={() => handleAction('sim_combined')} disabled={loading}>Simulate Combined (1/f + 10Hz)</button>
-            <button onClick={() => handleAction('load_real')} disabled={loading}>Load Sample LFP</button>
-          </ControlGroup>
-        )}
+          {activeTabDescription ? (
+            <div className="tabDescription">
+              <strong>{activeTab.toUpperCase()}:</strong> {activeTabDescription}
+            </div>
+          ) : null}
 
-        {activeTab === 'spectral' && (
-          <ControlGroup title="Power Spectrum">
-            <button onClick={() => handleAction('spectral')} disabled={loading || !hasSignal}>Compute Welch PSD</button>
-            {results.spectral && (
-              <div style={{ height: 350, marginTop: '20px' }}>
-                <ResponsiveContainer>
-                  <LineChart data={results.spectral}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="freq" />
-                    <YAxis scale="log" domain={['auto', 'auto']} tickFormatter={(v) => v.toExponential(1)} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="psd" stroke="#007bff" dot={false} strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
+          <div className="panel">
+            {activeTab === 'sim' && (
+              <div className="row">
+                <button className="neonAction" onClick={() => handleAction('sim_combined')} disabled={loading} type="button">
+                  Simulate Combined (1/f + 10Hz)
+                </button>
+                <button className="neonAction" onClick={() => handleAction('load_real')} disabled={loading} type="button">
+                  Load Sample LFP
+                </button>
               </div>
             )}
-          </ControlGroup>
-        )}
 
-        {activeTab === 'aperiodic' && (
-          <ControlGroup title="IRASA Decomposition">
-            <button onClick={() => handleAction('aperiodic')} disabled={loading || !hasSignal}>Separate Periodic/Aperiodic</button>
-            {results.aperiodic && (
-              <div style={{ height: 350, marginTop: '20px' }}>
-                <ResponsiveContainer>
-                  <LineChart data={results.aperiodic.irasa.freqs.map((f, i) => ({
-                    freq: f.toFixed(1),
-                    ap: results.aperiodic.irasa.aperiodic[i],
-                    pe: results.aperiodic.irasa.periodic[i]
-                  }))}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="freq" />
-                    <YAxis scale="log" domain={['auto', 'auto']} />
-                    <Tooltip />
-                    <Legend verticalAlign="top" height={36}/>
-                    <Line type="monotone" dataKey="ap" stroke="#6610f2" dot={false} name="Aperiodic Component" strokeWidth={2} />
-                    <Line type="monotone" dataKey="pe" stroke="#e83e8c" dot={false} name="Periodic Component" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </ControlGroup>
-        )}
-
-        {activeTab === 'rhythm' && (
-          <ControlGroup title="Rhythmicity">
-            <button onClick={() => handleAction('rhythm')} disabled={loading || !hasSignal}>Compute Lagged Coherence</button>
-            {results.rhythm && (
-              <div style={{ height: 300, marginTop: '20px' }}>
-                <ResponsiveContainer>
-                  <LineChart data={results.rhythm}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="freq" />
-                    <YAxis domain={[0, 1]} />
-                    <Tooltip />
-                    <Line type="step" dataKey="lc" stroke="#fd7e14" strokeWidth={3} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </ControlGroup>
-        )}
-
-        {activeTab === 'ml' && (
-          <ControlGroup title="ML Feature Extraction">
-            <button onClick={() => handleAction('ml')} disabled={loading || !hasSignal}>Extract Feature Suite</button>
-            {results.ml && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', marginTop: '20px' }}>
-                {Object.entries(results.ml).map(([k, v]) => (
-                  <div key={k} style={{ padding: '10px', border: '1px solid #eee', borderRadius: '4px' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#6c757d', textTransform: 'uppercase' }}>{k.replace('_', ' ')}</div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{typeof v === 'number' ? v.toFixed(4) : String(v)}</div>
+            {activeTab === 'spectral' && (
+              <div>
+                <div className="row">
+                  <button className="neonAction" onClick={() => handleAction('spectral')} disabled={loading || !hasSignal} type="button">
+                    Compute Welch PSD
+                  </button>
+                </div>
+                {results.spectral && results.spectral.length > 0 && (
+                  <div className="chartMiniWrap">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={results.spectral}>
+                        <CartesianGrid stroke="rgba(0,245,255,0.14)" strokeDasharray="4 4" vertical={false} />
+                        <XAxis
+                          dataKey="freq"
+                          tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                          axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                          tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                        />
+                        <YAxis
+                          scale="log"
+                          domain={['auto', 'auto']}
+                          tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                          tickFormatter={(v) => (typeof v === 'number' ? v.toExponential(1) : String(v))}
+                          axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                          tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                        />
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Line type="monotone" dataKey="psd" stroke="#00f5ff" dot={false} strokeWidth={2} isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
-                ))}
+                )}
+                {results.spectral && results.spectral.length === 0 ? <div className="miniText">No positive PSD points to draw (log scale).</div> : null}
               </div>
             )}
-          </ControlGroup>
-        )}
-      </div>
 
-      <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '5px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #dee2e6' }}>
-        <h3 style={{ marginTop: 0, fontSize: '1rem', display: 'flex', justifyContent: 'space-between' }}>
-          Signal Preview {hasSignal && <span style={{ color: '#6c757d', fontWeight: 'normal' }}>{signal.length} samples @ {fs}Hz</span>}
-        </h3>
-        <div style={{ height: '250px' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={signal}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="x" tickFormatter={(v) => v.toFixed(1) + 's'} hide={!hasSignal} />
-              <YAxis />
-              <Tooltip labelFormatter={(v) => v.toFixed(3) + 's'} />
-              <Line type="monotone" dataKey="y" stroke="#343a40" dot={false} isAnimationActive={false} strokeWidth={1} />
-              <Brush dataKey="x" height={30} stroke="#007bff" tickFormatter={(v) => v.toFixed(1)} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+            {activeTab === 'aperiodic' && (
+              <div>
+                <div className="row">
+                  <button className="neonAction" onClick={() => handleAction('aperiodic')} disabled={loading || !hasSignal} type="button">
+                    Separate Periodic/Aperiodic
+                  </button>
+                </div>
+                {results.aperiodic && (
+                  <div className="chartMiniWrap">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={results.aperiodic.irasa.freqs.map((f, i) => {
+                          const freq = Number(f);
+                          const apVal = results.aperiodic.irasa.aperiodic[i];
+                          const peVal = results.aperiodic.irasa.periodic[i];
+                          return {
+                            freq,
+                            ap: typeof apVal === 'number' && apVal > 0 ? apVal : null,
+                            pe: typeof peVal === 'number' && peVal > 0 ? peVal : null
+                          };
+                        })}
+                      >
+                        <CartesianGrid stroke="rgba(0,245,255,0.14)" strokeDasharray="4 4" vertical={false} />
+                        <XAxis
+                          dataKey="freq"
+                          tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                          axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                          tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                        />
+                        <YAxis
+                          scale="log"
+                          domain={['auto', 'auto']}
+                          tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                          axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                          tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                        />
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Legend wrapperStyle={{ color: 'rgba(220,255,255,0.85)' }} />
+                        <Line type="monotone" dataKey="ap" stroke="#6610f2" dot={false} name="Aperiodic Component" strokeWidth={2} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="pe" stroke="#ff3df2" dot={false} name="Periodic Component" strokeWidth={2} isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'rhythm' && (
+              <div>
+                <div className="row">
+                  <button className="neonAction" onClick={() => handleAction('rhythm')} disabled={loading || !hasSignal} type="button">
+                    Compute Lagged Coherence
+                  </button>
+                </div>
+                {results.rhythm && results.rhythm.length > 0 && (
+                  <div className="chartMiniWrap">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={results.rhythm}>
+                        <CartesianGrid stroke="rgba(0,245,255,0.14)" strokeDasharray="4 4" />
+                        <XAxis
+                          dataKey="freq"
+                          tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                          axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                          tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                        />
+                        <YAxis
+                          domain={[0, 1]}
+                          tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                          axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                          tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                        />
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Line type="step" dataKey="lc" stroke="#ff7a18" strokeWidth={3} isAnimationActive={false} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'ml' && (
+              <div>
+                <div className="row">
+                  <button className="neonAction" onClick={() => handleAction('ml')} disabled={loading || !hasSignal} type="button">
+                    Extract Feature Suite
+                  </button>
+                </div>
+                {results.ml && (
+                  <pre className="jsonPre">{JSON.stringify(results.ml, null, 2)}</pre>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="card chartCard">
+          <h3 className="cardTitle">Signal Visualization</h3>
+          <div className="chartWrap">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={signal}>
+                <CartesianGrid stroke="rgba(0,245,255,0.14)" strokeDasharray="4 4" vertical={false} />
+                <XAxis
+                  dataKey="x"
+                  tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                  axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                  tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                  tickFormatter={(v) => `${Number(v).toFixed(1)}s`}
+                  hide={!hasSignal}
+                />
+                <YAxis
+                  tick={{ fill: 'rgba(220, 255, 255, 0.78)' }}
+                  axisLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                  tickLine={{ stroke: 'rgba(0,245,255,0.20)' }}
+                />
+                <Tooltip
+                  contentStyle={tooltipContentStyle}
+                  labelFormatter={(v) => `${Number(v).toFixed(3)}s`}
+                />
+                <Line type="monotone" dataKey="y" stroke="#39ff88" dot={false} isAnimationActive={false} strokeWidth={2} />
+                <Brush dataKey="x" height={30} stroke="#00f5ff" tickFormatter={(v) => Number(v).toFixed(1)} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
       </div>
 
       {loading && (
