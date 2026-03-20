@@ -1,7 +1,7 @@
 import numpy as np
 from neurodsp.utils.decorators import multidim
 
-@multidim
+@multidim()
 def sample_entropy(sig, m=2, r=0.2):
     """
     Calculate Sample Entropy of a signal.

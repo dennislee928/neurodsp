@@ -52,6 +52,46 @@ function App() {
 
   const tabs = ['sim', 'spectral', 'aperiodic', 'burst', 'rhythm', 'ml', 'advanced'];
 
+
+  function NeuroDSPOverview() {
+    return (
+      <div style={{
+        background: 'rgba(254,255,240,0.95)',
+        border: '1px solid #dde',
+        borderRadius: 12,
+        padding: '1.2em 1.4em',
+        marginBottom: '1.3em',
+        marginTop: '14px',
+        color: '#222',
+        maxWidth: 880,
+        boxShadow: '0 10px 32px rgba(88,88,100,0.1)'
+      }}>
+        <h2 style={{marginTop:0, fontSize: '1.3em'}}>NeuroDSP Modules Overview</h2>
+        <p>
+          This page lets you explore the key modules provided by the NeuroDSP toolbox:
+        </p>
+        <ul style={{marginBottom:0, marginTop: '0.6em', fontSize: '1.06em'}}>
+          <li><b>filt</b>: Filter data with bandpass, highpass, lowpass, or notch filters (now with <b>causal</b> real-time support)</li>
+          <li><b>timefrequency</b>: Estimate instantaneous measures of oscillatory activity</li>
+          <li><b>spectral</b>: Compute frequency domain features such as power spectra</li>
+          <li><b>burst</b>: Detect bursting oscillations in neural signals</li>
+          <li><b>rhythm</b>: Find and analyze rhythmic and recurrent patterns in time series</li>
+          <li><b>aperiodic</b>: Analyze aperiodic features of neural time series (IRASA, Autocorrelation)</li>
+          <li><b>connectivity</b>: <b>New</b> – High-performance JAX-powered connectivity analysis (PLV)</li>
+          <li><b>nonlinear</b>: <b>New</b> – Signal complexity measures (Sample Entropy)</li>
+          <li><b>ml</b>: <b>New</b> – Automated feature extraction bridge for Machine Learning pipelines</li>
+          <li><b>sim</b>: Simulate time series, including periodic and aperiodic signal components</li>
+          <li><b>plts</b>: Plot neural time series and derived measures</li>
+          <li><b>utils</b>: Additional utilities for managing time series data</li>
+        </ul>
+        <p style={{marginTop:'1em', color:'#24497c'}}>
+          Use the tabs above to access simulations, run analyses, and visualize results for each module.
+        </p>
+      </div>
+    );
+  }
+
+
   const handleSimulate = async () => {
     const data = await fetchData('/simulate', {
       n_seconds: 4,

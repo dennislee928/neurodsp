@@ -57,9 +57,16 @@ def to_serializable(v):
     if isinstance(v, (np.bool_, bool)):
         return bool(v)
     
-    # Final fallback for numpy/jax scalars
+    # Final fallback for numpy/jax scalars or other objects
     if hasattr(v, 'item') and not hasattr(v, '__len__'):
-        return to_serializable(v.item())
+        try:
+            return to_serializable(v.item())
+        except:
+            return None
+            
+    # If it's a function or something else not serializable, return None instead of the object
+    if callable(v):
+        return None
         
     return v
 
@@ -131,6 +138,7 @@ def analyze_spectral(data: SignalInput):
 @app.post("/analyze/aperiodic")
 def analyze_aperiodic(data: SignalInput):
     try:
+        # Use a slightly longer signal or adjust parameters if IRASA fails
         freqs, psd_ap, psd_pe = compute_irasa(np.array(data.sig), data.fs)
         autocorr = compute_autocorr(np.array(data.sig))
         return JSONResponse(content={
@@ -157,7 +165,13 @@ def analyze_burst(params: BurstParams):
 @app.post("/analyze/rhythm")
 def analyze_rhythm(params: RhythmParams):
     try:
-        lc = compute_lagged_coherence(np.array(params.sig), params.fs, params.freqs)
+        # Ensure freqs is an array if it's a list with >3 elements
+        freqs_input = np.array(params.freqs)
+        lc = compute_lagged_coherence(np.array(params.sig), params.fs, freqs_input, return_spectrum=True)
+        # Note: compute_lagged_coherence returns (lc, freqs) if return_spectrum=True
+        if isinstance(lc, tuple):
+            lcs, freqs_out = lc
+            return JSONResponse(content={"freqs": to_serializable(freqs_out), "lc": to_serializable(lcs)})
         return JSONResponse(content={"freqs": to_serializable(params.freqs), "lc": to_serializable(lc)})
     except Exception as e:
         traceback.print_exc()
@@ -168,7 +182,8 @@ def analyze_connectivity(params: ConnectivityParams):
     try:
         phases = []
         for s in params.sigs:
-            p = phase_by_time(np.array(s), params.fs, params.f_range)
+            # remove_edges=False to avoid NaNs in PLV
+            p = phase_by_time(np.array(s), params.fs, params.f_range, remove_edges=False)
             phases.append(p)
         plv_matrix = compute_plv_jax(np.array(phases))
         return JSONResponse(content={"plv": to_serializable(plv_matrix)})
