@@ -43,15 +43,36 @@ plausible simulations of neural time series.
 
 Available modules in ``NeuroDSP`` include:
 
-- ``filt`` : Filter data with bandpass, highpass, lowpass, or notch filters
+- ``filt`` : Filter data with bandpass, highpass, lowpass, or notch filters (now with **causal** real-time support)
 - ``timefrequency`` : Estimate instantaneous measures of oscillatory activity
 - ``spectral`` : Compute freqeuncy domain features such as power spectra
 - ``burst`` : Detect bursting oscillations in neural signals
 - ``rhythm`` : Find and analyze rhythmic and recurrent patterns in time series
-- ``aperiodic`` : Analyze aperiodic features of neural time series
+- ``aperiodic`` : Analyze aperiodic features of neural time series (IRASA, Autocorrelation)
+- ``connectivity`` : **(New)** High-performance JAX-powered connectivity analysis (PLV)
+- ``nonlinear`` : **(New)** Signal complexity measures (Sample Entropy)
+- ``ml`` : **(New)** Automated feature extraction bridge for Machine Learning pipelines
 - ``sim`` : Simulate time series, including periodic and aperiodic signal components
 - ``plts`` : Plot neural time series and derived measures
 - ``utils`` : Additional utilities for managing time series data
+
+Web Dashboard
+-------------
+
+NeuroDSP now includes a fully interactive **Web Dashboard** for real-time signal simulation, filtering, and analysis.
+
+Features:
+- **Interactive Visualization**: Real-time plotting of simulated and real neural signals.
+- **Analysis Tabs**: Dedicated modules for Spectral, Aperiodic, Burst, Rhythm, and ML features.
+- **Real Data Integration**: Load and analyze sample data directly from the repository.
+
+To run the dashboard using Docker:
+
+.. code-block:: shell
+
+    $ docker compose up --build
+
+Access the dashboard at ``http://localhost:3000``.
 
 Documentation
 -------------
@@ -78,6 +99,9 @@ It has the following dependencies:
 - `numpy <https://github.com/numpy/numpy>`_
 - `scipy <https://github.com/scipy/scipy>`_
 - `matplotlib <https://github.com/matplotlib/matplotlib>`_
+- `jax <https://github.com/google/jax>`_ (for high-performance connectivity)
+- `pydantic <https://github.com/pydantic/pydantic>`_ (for ML feature bridge and API validation)
+- `pandas <https://github.com/pandas-dev/pandas>`_
 
 Optional dependencies:
 
