@@ -16,12 +16,13 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          n_seconds: 2,
+          n_seconds: 4,
           fs: 500,
           components: {
             sim_powerlaw: { exponent: -1.5 },
             sim_oscillation: { freq: 10 }
           }
+
         })
       });
       const data = await res.json();

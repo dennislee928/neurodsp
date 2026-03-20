@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  neurodsp:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - JAX_PLATFORMS=cpu
+    command: ["robot", "tests/robot/"]

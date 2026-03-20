@@ -1,5 +1,6 @@
 """Filter signals with FIR filters."""
 
+import numpy as np
 import jax.numpy as jnp
 from scipy.signal import firwin
 from jax.scipy.signal import convolve
@@ -143,9 +144,9 @@ def apply_fir_filter(sig, filter_coefs, causal=False):
     if causal:
         # For causal filtering, we want the convolution to start at the current sample
         # mode='full' gives L+N-1 samples. We want the first L samples.
-        return convolve(sig, filter_coefs, mode='full')[:len(sig)]
+        return np.array(convolve(sig, filter_coefs, mode='full')[:len(sig)])
     else:
-        return convolve(sig, filter_coefs, mode='same')
+        return np.array(convolve(sig, filter_coefs, mode='same'))
 
 
 def design_fir_filter(fs, pass_type, f_range, n_cycles=None, n_seconds=None):

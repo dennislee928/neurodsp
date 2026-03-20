@@ -1,10 +1,20 @@
-version: '3.8'
-
 services:
-  neurodsp:
-    build: .
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
     volumes:
       - .:/app
     environment:
-      - JAX_PLATFORMS=cpu
-    command: ["robot", "tests/robot/"]
+      - PYTHONUNBUFFERED=1
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend

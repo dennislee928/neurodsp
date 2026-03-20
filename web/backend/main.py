@@ -30,12 +30,15 @@ class FilterParams(BaseModel):
     filter_type: str = "fir"
     causal: bool = False
 
+import traceback
+
 @app.post("/simulate")
 def simulate_signal(params: SignalParams):
     try:
         sig = sim_combined(n_seconds=params.n_seconds, fs=params.fs, components=params.components)
         return {"sig": sig.tolist(), "fs": params.fs}
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/filter")
@@ -47,6 +50,7 @@ def filter_sig(params: FilterParams):
                                  filter_type=params.filter_type, causal=params.causal)
         return {"sig_filt": sig_filt.tolist()}
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 class FeatureParams(BaseModel):
@@ -59,9 +63,10 @@ def extract_features(params: FeatureParams):
         bridge = MLFeatureBridge(params.fs)
         features = bridge.extract_features(np.array(params.sig))
         # Convert nan to None for JSON
-        return {k: (None if np.isnan(v) else (float(v) if isinstance(v, (np.floating, float)) else v)) 
+        return {k: (None if (v is None or (isinstance(v, (float, np.floating)) and np.isnan(v))) else (float(v) if isinstance(v, (np.floating, float)) else v)) 
                 for k, v in features.items()}
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 if __name__ == "__main__":
