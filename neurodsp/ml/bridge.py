@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from neurodsp.spectral import compute_spectrum
 from neurodsp.aperiodic import compute_irasa
-from neurodsp.nonlinear.entropy import sample_entropy
+from neurodsp.nonlinear import sample_entropy
 
 class MLFeatureBridge:
     """

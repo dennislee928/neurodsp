@@ -11,7 +11,7 @@ from neurodsp.utils.decorators import multidim
 @multidim(pass_2d_input=True)
 def filter_signal(sig, fs, pass_type, f_range, filter_type=None,
                   print_transitions=False, plot_properties=False, return_filter=False,
-                  causal=False, **filter_kwargs):
+                  **filter_kwargs):
     """Apply a bandpass, bandstop, highpass, or lowpass filter to a neural signal.
 
     Parameters
@@ -41,8 +41,6 @@ def filter_signal(sig, fs, pass_type, f_range, filter_type=None,
         If True, plot the properties of the filter, including frequency response and/or kernel.
     return_filter : bool, optional, default: False
         If True, return the filter coefficients.
-    causal : bool, optional, default: False
-        If True, use a causal filter (no phase shift correction).
     **filter_kwargs
         Additional parameters for the filtering function, specific to filtering type.
 
@@ -56,9 +54,13 @@ def filter_signal(sig, fs, pass_type, f_range, filter_type=None,
         |        Either `n_cycles` or `n_seconds` can be set for the filter length, but not both.
         |    remove_edges : bool, optional, default: True
         |        If True, replace samples within half the kernel length to be np.nan.
+        |    causal : bool, optional, default: False
+        |        If True, use a causal filter (no phase shift correction).
         | For IIR filters, can include:
         |    butterworth_order : int, optional
         |        Order of the butterworth filter. See input 'N' in scipy.signal.butter.
+        |    causal : bool, optional, default: False
+        |        If True, use a causal filter (no phase shift correction).
 
     Returns
     -------
@@ -85,6 +87,7 @@ def filter_signal(sig, fs, pass_type, f_range, filter_type=None,
         filter_type = 'iir' if 'butterworth_order' in filter_kwargs else 'fir'
 
     _filter_input_checks(filter_type, filter_kwargs)
+    causal = filter_kwargs.pop('causal', False)
 
     if filter_type.lower() == 'fir':
         return filter_signal_fir(sig, fs, pass_type, f_range, **filter_kwargs,
