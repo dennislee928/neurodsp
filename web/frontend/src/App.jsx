@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const API_BASE = "http://localhost:8000";
@@ -11,53 +11,70 @@ function App() {
 
   const simulate = async () => {
     setLoading(true);
-    const res = await fetch(`${API_BASE}/simulate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        n_seconds: 2,
-        fs: 500,
-        components: {
-          sim_powerlaw: { exponent: -1.5 },
-          sim_oscillation: { freq: 10 }
-        }
-      })
-    });
-    const data = await res.json();
-    const chartData = data.sig.map((v, i) => ({ x: i / data.fs, y: v }));
-    setSignal(chartData);
-    setLoading(false);
+    try {
+      const res = await fetch(`${API_BASE}/simulate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          n_seconds: 2,
+          fs: 500,
+          components: {
+            sim_powerlaw: { exponent: -1.5 },
+            sim_oscillation: { freq: 10 }
+          }
+        })
+      });
+      const data = await res.json();
+      const chartData = data.sig.map((v, i) => ({ x: i / data.fs, y: v }));
+      setSignal(chartData);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const applyFilter = async () => {
     if (signal.length === 0) return;
     setLoading(true);
-    const res = await fetch(`${API_BASE}/filter`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sig: signal.map(d => d.y),
-        fs: 500,
-        pass_type: 'bandpass',
-        f_range: [8, 12],
-        causal: false
-      })
-    });
-    const data = await res.json();
-    const chartData = data.sig_filt.map((v, i) => ({ x: i / 500, y: v }));
-    setFiltered(chartData);
-    setLoading(false);
+    try {
+      const res = await fetch(`${API_BASE}/filter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sig: signal.map(d => d.y),
+          fs: 500,
+          pass_type: 'bandpass',
+          f_range: [8, 12],
+          causal: false
+        })
+      });
+      const data = await res.json();
+      const chartData = data.sig_filt.map((v, i) => ({ x: i / 500, y: v }));
+      setFiltered(chartData);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const extract = async () => {
     if (signal.length === 0) return;
-    const res = await fetch(`${API_BASE}/features?fs=500`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(signal.map(d => d.y))
-    });
-    const data = await res.json();
-    setFeatures(data);
+    try {
+      const res = await fetch(`${API_BASE}/features`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sig: signal.map(d => d.y),
+          fs: 500
+        })
+      });
+      const data = await res.json();
+      setFeatures(data);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -87,7 +104,7 @@ function App() {
       {Object.keys(features).length > 0 && (
         <div>
           <h3>ML Features</h3>
-          <pre>{JSON.stringify(features, null, 2)}</pre>
+          <pre style={{ background: '#f4f4f4', padding: '10px' }}>{JSON.stringify(features, null, 2)}</pre>
         </div>
       )}
     </div>

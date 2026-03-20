@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import numpy as np
@@ -7,6 +8,14 @@ from neurodsp.filt import filter_signal
 from neurodsp.ml.bridge import MLFeatureBridge
 
 app = FastAPI(title="NeuroDSP Web API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class SignalParams(BaseModel):
     n_seconds: float = 1.0
@@ -40,13 +49,18 @@ def filter_sig(params: FilterParams):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+class FeatureParams(BaseModel):
+    sig: List[float]
+    fs: float
+
 @app.post("/features")
-def extract_features(sig: List[float], fs: float):
+def extract_features(params: FeatureParams):
     try:
-        bridge = MLFeatureBridge(fs)
-        features = bridge.extract_features(np.array(sig))
+        bridge = MLFeatureBridge(params.fs)
+        features = bridge.extract_features(np.array(params.sig))
         # Convert nan to None for JSON
-        return {k: (None if np.isnan(v) else v) for k, v in features.items()}
+        return {k: (None if np.isnan(v) else (float(v) if isinstance(v, (np.floating, float)) else v)) 
+                for k, v in features.items()}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

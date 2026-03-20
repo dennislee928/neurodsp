@@ -2,6 +2,8 @@ jax[cpu]
 jaxlib
 altair
 fastplotlib
+matplotlib
+pandas
 robotframework
 polars
 pydantic

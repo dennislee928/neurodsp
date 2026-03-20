@@ -13,7 +13,7 @@ COPY . /app/
 
 # Install neurodsp and backend dependencies
 RUN pip install --no-cache-dir .
-RUN pip install --no-cache-dir fastapi uvicorn pydantic pandas
+RUN pip install --no-cache-dir fastapi uvicorn pydantic pandas matplotlib
 
 WORKDIR /app/web/backend
 

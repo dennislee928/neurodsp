@@ -3,17 +3,11 @@ FROM node:18-slim
 
 WORKDIR /app
 
-# In a real scenario, we would copy package.json and run npm install
-# Here we'll just set up the environment for a static build or dev server
-# For this expansion plan, we assume a standard Vite/React setup
+COPY web/frontend/package*.json ./
+RUN npm install
 
-COPY web/frontend /app
+COPY web/frontend ./
 
-# Example:
-# RUN npm install
-# CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+EXPOSE 3000
 
-# Since I don't have the full React project structure (package.json, etc.), 
-# I'll provide the configuration template.
-
-CMD ["echo", "Frontend ready for npm install and build"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
