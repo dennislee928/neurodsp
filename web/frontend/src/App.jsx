@@ -78,11 +78,31 @@ function App() {
     }
   };
 
+  const loadRealData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/load-real`);
+      const data = await res.json();
+      if (res.ok) {
+        const chartData = data.sig.map((v, i) => ({ x: i / data.fs, y: v }));
+        setSignal(chartData);
+        setFiltered([]);
+      } else {
+        alert(data.detail);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
       <h1>NeuroDSP Dashboard</h1>
       <div style={{ marginBottom: '20px' }}>
         <button onClick={simulate} disabled={loading}>Simulate Signal</button>
+        <button onClick={loadRealData} disabled={loading}>Load Real Data</button>
         <button onClick={applyFilter} disabled={loading || signal.length === 0}>Apply 10Hz Bandpass</button>
         <button onClick={extract} disabled={loading || signal.length === 0}>Extract ML Features</button>
       </div>

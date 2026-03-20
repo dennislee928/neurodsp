@@ -22,6 +22,24 @@ class SignalParams(BaseModel):
     fs: float = 500.0
     components: Dict[str, Dict] = {"sim_powerlaw": {"exponent": -1}}
 
+import os
+
+@app.get("/load-real")
+def load_real_signal():
+    try:
+        # Path to sample data in the repo (relative to backend dir)
+        # In container: /app/web/backend/../../data/sample_data_1.npy -> /app/data/...
+        data_path = os.path.join(os.path.dirname(__file__), "../../data/sample_data_1.npy")
+        if not os.path.exists(data_path):
+             raise HTTPException(status_code=404, detail=f"Sample data not found at {data_path}")
+        
+        sig = np.load(data_path)
+        fs = 500.0 # Standard FS for these samples
+        return {"sig": sig.tolist(), "fs": fs}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=str(e))
+
 class FilterParams(BaseModel):
     sig: List[float]
     fs: float
@@ -57,14 +75,24 @@ class FeatureParams(BaseModel):
     sig: List[float]
     fs: float
 
+def to_serializable(v):
+    if v is None:
+        return None
+    if isinstance(v, (np.floating, float)):
+        return float(v) if not np.isnan(v) else None
+    if isinstance(v, (np.integer, int)):
+        return int(v)
+    if isinstance(v, np.ndarray):
+        return v.tolist()
+    return v
+
 @app.post("/features")
 def extract_features(params: FeatureParams):
     try:
         bridge = MLFeatureBridge(params.fs)
         features = bridge.extract_features(np.array(params.sig))
-        # Convert nan to None for JSON
-        return {k: (None if (v is None or (isinstance(v, (float, np.floating)) and np.isnan(v))) else (float(v) if isinstance(v, (np.floating, float)) else v)) 
-                for k, v in features.items()}
+        # Ensure all types are native Python types for JSON serialization
+        return {k: to_serializable(v) for k, v in features.items()}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
