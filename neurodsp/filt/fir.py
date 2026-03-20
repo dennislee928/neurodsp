@@ -1,7 +1,8 @@
 """Filter signals with FIR filters."""
 
-import numpy as np
-from scipy.signal import firwin, convolve
+import jax.numpy as jnp
+from scipy.signal import firwin
+from jax.scipy.signal import convolve
 
 from neurodsp.utils import remove_nans, restore_nans
 from neurodsp.utils.decorators import multidim
@@ -44,7 +45,7 @@ def filter_signal_fir(sig, fs, pass_type, f_range, n_cycles=None, n_seconds=None
         Filter length, in seconds.
         Either `n_cycles` or `n_seconds` can be defined to set the filter length, but not both.
     remove_edges : bool, optional
-        If True, replace samples within half the kernel length to be np.nan.
+        If True, replace samples within half the kernel length to be jnp.nan.
     print_transitions : bool, optional, default: False
         If True, print out the transition and pass bandwidths.
     plot_properties : bool, optional, default: False
@@ -250,7 +251,7 @@ def compute_filter_length(fs, pass_type, f_lo, f_hi, n_cycles=None, n_seconds=No
         raise ValueError('Either `n_cycles` or `n_seconds` needs to be defined.')
 
     # Typecast filter length to an integer, rounding up & forcing length to be odd
-    filt_len = int(np.ceil(filt_len))
+    filt_len = int(jnp.ceil(filt_len))
     if filt_len % 2 == 0:
         filt_len = filt_len + 1
 

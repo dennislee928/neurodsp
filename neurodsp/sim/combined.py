@@ -2,7 +2,8 @@
 
 from itertools import repeat
 
-import numpy as np
+import jax.numpy as jnp
+from jax import random
 from scipy.linalg import norm
 
 from neurodsp.sim.info import get_sim_func
@@ -65,7 +66,7 @@ def sim_combined(n_seconds, fs, components, component_variances=1):
     # Collect the sim function to use, and repeat variance if is single number
     components = {get_sim_func(name) : params for name, params in components.items()}
     variances = repeat(component_variances) if \
-        isinstance(component_variances, (int, float, np.number)) else iter(component_variances)
+        isinstance(component_variances, (int, float, jnp.generic)) else iter(component_variances)
 
     # Simulate each component of the signal
     sig_components = []
@@ -82,13 +83,13 @@ def sim_combined(n_seconds, fs, components, component_variances=1):
                                        variance=next(variances)))
 
     # Combine total signal across all simulated components
-    sig = np.sum(sig_components, axis=0)
+    sig = jnp.sum(jnp.array(sig_components), axis=0)
 
     return sig
 
 
 @normalize
-def sim_peak_oscillation(sig_ap, fs, freq, bw, height):
+def sim_peak_oscillation(sig_ap, fs, freq, bw, height, seed=None):
     """Simulate a signal with an aperiodic component and a specific oscillation peak.
 
     Parameters
@@ -104,55 +105,45 @@ def sim_peak_oscillation(sig_ap, fs, freq, bw, height):
     height : float
         Relative height of the gaussian peak at the central frequency ``freq``.
         Units of log10(power), over the aperiodic component.
+    seed : int, optional
+        Seed for the random number generator.
 
     Returns
     -------
     sig : 1d array
         Time series with desired power spectrum.
-
-    Notes
-    -----
-    - This function creates a time series whose power spectrum consists of an aperiodic component
-      and a gaussian peak at ``freq`` with standard deviation ``bw`` and relative ``height``
-    - The periodic component of the signal will be sinusoidal
-
-    Examples
-    --------
-    Simulate a signal with aperiodic exponent of -2 & oscillation central frequency of 20 Hz:
-
-    >>> from neurodsp.sim import sim_powerlaw
-    >>> fs = 500
-    >>> sig_ap = sim_powerlaw(n_seconds=10, fs=fs, exponent=-2.0)
-    >>> sig = sim_peak_oscillation(sig_ap, fs=fs, freq=20, bw=5, height=7)
     """
 
     sig_len = len(sig_ap)
     times = create_times(sig_len / fs, fs)
 
     # Compute the Fourier transform of the aperiodic signal
-    #   We extract the first half of the frequencies from the FFT, since the signal is real
-    sig_ap_hat = np.fft.fft(sig_ap)[0:(sig_len // 2 + 1)]
+    sig_ap_hat = jnp.fft.fft(sig_ap)[0:(sig_len // 2 + 1)]
 
-    # Create the corresponding frequency vector, which is used to create the cosines to sum
-    freqs = np.linspace(0, fs / 2, num=sig_len // 2 + 1, endpoint=True)
+    # Create the corresponding frequency vector
+    freqs = jnp.linspace(0, fs / 2, num=sig_len // 2 + 1, endpoint=True)
 
     # Compute the periodic signal
-    sig_periodic = np.zeros(sig_len)
+    sig_periodic = jnp.zeros(sig_len)
 
-    for f_val, fft in zip(freqs, sig_ap_hat):
+    # Handle random seed
+    key = random.PRNGKey(seed if seed is not None else 0)
+
+    for i, (f_val, fft) in enumerate(zip(freqs, sig_ap_hat)):
 
         # Compute the sum of squares of the cosines
-        cos_times = 2 * np.pi * f_val * times
-        cos_norm = norm(np.cos(cos_times), 2) ** 2
+        cos_times = 2 * jnp.pi * f_val * times
+        cos_norm = norm(jnp.cos(cos_times), 2) ** 2
 
-        # Compute random phase shift
-        pha = np.cos(cos_times + 2 * np.pi * np.random.rand())
+        # Compute random phase shift using JAX random
+        key, subkey = random.split(key)
+        pha = jnp.cos(cos_times + 2 * jnp.pi * random.uniform(subkey))
 
         # Define relative height above the aperiodic power spectrum
-        hgt = height * np.exp(-(f_val - freq) ** 2 / (2 * bw ** 2))
+        hgt = height * jnp.exp(-(f_val - freq) ** 2 / (2 * bw ** 2))
 
-        sig_periodic += (-np.real(fft) + np.sqrt(np.real(fft) ** 2 + \
-            (10 ** hgt - 1) * np.abs(fft) ** 2)) / cos_norm * pha
+        sig_periodic += (-jnp.real(fft) + jnp.sqrt(jnp.real(fft) ** 2 + \
+            (10 ** hgt - 1) * jnp.abs(fft) ** 2)) / cos_norm * pha
 
     # Create the combined signal by summing periodic & aperiodic
     sig = sig_ap + sig_periodic
